@@ -11,8 +11,8 @@ app outTheGc {
     methods: {
       email: {
         fromField: {
-          name: "Basic App",
-          email: "hello@example.com"
+          name: "OutTheGC",
+          email: "hello@outthegc.com"
         },
         userSignupFields: import { userSignupFields } from "@src/auth/email/userSignupFields",
         emailVerification: {
@@ -23,7 +23,7 @@ app outTheGc {
         }
       },
     },
-    onAuthSucceededRedirectTo: "/",
+    onAuthSucceededRedirectTo: "/trips",
     onAuthFailedRedirectTo: "/login",
   },
   emailSender: {
@@ -61,40 +61,125 @@ page EmailVerificationPage {
 }
 // #endregion Auth
 
-// #region Tasks
-route TasksRoute { path: "/", to: TasksPage }
-page TasksPage {
+// #region Landing
+route LandingRoute { path: "/", to: LandingPage }
+page LandingPage {
+  component: import { LandingPage } from "@src/landing/LandingPage"
+}
+// #endregion Landing
+
+// #region Trips
+route TripsRoute { path: "/trips", to: TripsPage }
+page TripsPage {
   authRequired: true,
-  component: import { TasksPage } from "@src/tasks/TasksPage"
+  component: import { TripsPage } from "@src/trips/TripsPage"
 }
 
-query getTasks {
-  fn: import { getTasks } from "@src/tasks/queries",
-  entities: [Task, Tag]
+route TripDashboardRoute { path: "/trips/:tripId", to: TripDashboardPage }
+page TripDashboardPage {
+  authRequired: true,
+  component: import { DashboardPage } from "@src/trips/DashboardPage"
 }
 
-action createTask {
-  fn: import { createTask } from "@src/tasks/actions",
-  entities: [Task]
+route JoinTripRoute { path: "/join/:token", to: JoinTripPage }
+page JoinTripPage {
+  authRequired: true,
+  component: import { JoinTripPage } from "@src/trips/components/JoinTripPage"
 }
 
-action updateTaskStatus {
-  fn: import { updateTaskStatus } from "@src/tasks/actions",
-  entities: [Task]
+query getTrips {
+  fn: import { getTrips } from "@src/trips/queries",
+  entities: [Trip, TripParticipant, User]
 }
 
-action deleteCompletedTasks {
-  fn: import { deleteCompletedTasks } from "@src/tasks/actions",
-  entities: [Task],
+query getTrip {
+  fn: import { getTrip } from "@src/trips/queries",
+  entities: [Trip, TripParticipant, User]
 }
 
-query getTags {
-  fn: import { getTags } from "@src/tags/queries",
-  entities: [Tag]
+query getTripByJoinToken {
+  fn: import { getTripByJoinToken } from "@src/trips/queries",
+  entities: [Trip, TripParticipant, User]
 }
 
-action createTag {
-  fn: import { createTag } from "@src/tags/actions",
-  entities: [Tag]
+action createTrip {
+  fn: import { createTrip } from "@src/trips/actions",
+  entities: [Trip, TripParticipant, Activity]
 }
-// #endregion Tasks
+
+action updateTrip {
+  fn: import { updateTrip } from "@src/trips/actions",
+  entities: [Trip]
+}
+
+action deleteTrip {
+  fn: import { deleteTrip } from "@src/trips/actions",
+  entities: [Trip]
+}
+
+action joinTrip {
+  fn: import { joinTrip } from "@src/trips/actions",
+  entities: [TripParticipant, Activity]
+}
+
+action updateRSVP {
+  fn: import { updateRSVP } from "@src/trips/actions",
+  entities: [TripParticipant, Activity]
+}
+// #endregion Trips
+
+// #region Polls
+query getDatePitches {
+  fn: import { getDatePitches } from "@src/polls/queries",
+  entities: [DatePitch, DateVote, User]
+}
+
+query getDestinationPitches {
+  fn: import { getDestinationPitches } from "@src/polls/queries",
+  entities: [DestinationPitch, DestinationVote, User]
+}
+
+action createDatePitch {
+  fn: import { createDatePitch } from "@src/polls/actions",
+  entities: [DatePitch, Activity]
+}
+
+action voteOnDatePitch {
+  fn: import { voteOnDatePitch } from "@src/polls/actions",
+  entities: [DateVote, Activity]
+}
+
+action createDestinationPitch {
+  fn: import { createDestinationPitch } from "@src/polls/actions",
+  entities: [DestinationPitch, Activity]
+}
+
+action voteOnDestinationPitch {
+  fn: import { voteOnDestinationPitch } from "@src/polls/actions",
+  entities: [DestinationVote, Activity]
+}
+
+action setPitchDeadline {
+  fn: import { setPitchDeadline } from "@src/polls/actions",
+  entities: [DatePitch]
+}
+// #endregion Polls
+
+// #region Activity
+query getActivities {
+  fn: import { getActivities } from "@src/activity/queries",
+  entities: [Activity, User]
+}
+// #endregion Activity
+
+// #region Travel
+query getTravelConfirmations {
+  fn: import { getTravelConfirmations } from "@src/travel/queries",
+  entities: [TravelConfirmation, User]
+}
+
+action confirmTravel {
+  fn: import { confirmTravel } from "@src/travel/actions",
+  entities: [TravelConfirmation, Activity]
+}
+// #endregion Travel
