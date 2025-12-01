@@ -11,8 +11,45 @@ export const getTrips = async (
     throw new HttpError(401);
   }
 
-  // TODO: Implement query to get all trips where user is organizer or participant
-  return [];
+  if (!context.entities) {
+    throw new HttpError(500, "Database entities not available");
+  }
+
+  const { Trip, TripParticipant } = context.entities;
+
+  try {
+    // Get all trips where user is organizer or participant
+    const trips = await Trip.findMany({
+      where: {
+        OR: [
+          { organizerId: context.user.id },
+          {
+            participants: {
+              some: {
+                userId: context.user.id,
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        organizer: true,
+        participants: {
+          include: {
+            user: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return trips as TripWithParticipants[];
+  } catch (error) {
+    console.error("Error fetching trips:", error);
+    throw new HttpError(500, "Failed to fetch trips");
+  }
 };
 
 // Get a single trip by ID
