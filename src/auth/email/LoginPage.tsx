@@ -1,8 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { LoginForm } from "wasp/client/auth";
 import { AuthLayout } from "../AuthLayout";
 
 export function LoginPage() {
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get("redirect");
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       <AuthLayout>
@@ -30,7 +32,7 @@ export function LoginPage() {
               <span className="text-xs text-gray-400">
                 {"Don't have an account? "}
                 <Link
-                  to="/signup"
+                  to={redirect ? `/signup?redirect=${encodeURIComponent(redirect)}` : "/signup"}
                   className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 hover:from-cyan-300 hover:to-purple-300 transition-all underline-offset-4 hover:underline"
                 >
                   Go to signup

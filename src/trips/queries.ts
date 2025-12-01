@@ -61,20 +61,83 @@ export const getTrip = async (
     throw new HttpError(401);
   }
 
-  // TODO: Implement query to get trip by ID with participants
-  return null;
+  if (!context.entities) {
+    throw new HttpError(500, "Database entities not available");
+  }
+
+  const { Trip } = context.entities;
+
+  try {
+    const trip = await Trip.findUnique({
+      where: { id: tripId },
+      include: {
+        organizer: true,
+        participants: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!trip) {
+      return null;
+    }
+
+    // Check if user has access to this trip (organizer or participant)
+    const hasAccess =
+      trip.organizerId === context.user.id ||
+      trip.participants.some((p: TripParticipant) => p.userId === context.user.id);
+
+    if (!hasAccess) {
+      throw new HttpError(403, "You don't have access to this trip");
+    }
+
+    return trip as TripWithParticipants;
+  } catch (error) {
+    console.error("Error fetching trip:", error);
+    if (error instanceof HttpError) {
+      throw error;
+    }
+    throw new HttpError(500, "Failed to fetch trip");
+  }
 };
 
-// Get trip by join token (for join flow)
+// Get trip by join token (for join flow) - public, no auth required
 export const getTripByJoinToken = async (
   { token }: { token: string },
   context: any,
 ): Promise<TripWithParticipants | null> => {
-  if (!context.user) {
-    throw new HttpError(401);
+  // This query is public - no auth required
+  if (!context.entities) {
+    throw new HttpError(500, "Database entities not available");
   }
 
-  // TODO: Implement query to get trip by join token
-  return null;
-};
+  const { Trip } = context.entities;
 
+  try {
+    const trip = await Trip.findUnique({
+      where: { joinToken: token },
+      include: {
+        organizer: true,
+        participants: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!trip) {
+      return null;
+    }
+
+    return trip as TripWithParticipants;
+  } catch (error) {
+    console.error("Error fetching trip by join token:", error);
+    if (error instanceof HttpError) {
+      throw error;
+    }
+    throw new HttpError(500, "Failed to fetch trip");
+  }
+};

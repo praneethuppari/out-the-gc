@@ -83,7 +83,7 @@ page TripDashboardPage {
 
 route JoinTripRoute { path: "/join/:token", to: JoinTripPage }
 page JoinTripPage {
-  authRequired: true,
+  authRequired: false,
   component: import { JoinTripPage } from "@src/trips/components/JoinTripPage"
 }
 
@@ -119,12 +119,12 @@ action deleteTrip {
 
 action joinTrip {
   fn: import { joinTrip } from "@src/trips/actions",
-  entities: [TripParticipant, Activity]
+  entities: [Trip, TripParticipant, Activity]
 }
 
 action updateRSVP {
   fn: import { updateRSVP } from "@src/trips/actions",
-  entities: [TripParticipant, Activity]
+  entities: [Trip, TripParticipant, Activity]
 }
 // #endregion Trips
 

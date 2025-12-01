@@ -1,9 +1,11 @@
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { SignupForm } from "wasp/client/auth";
 import { AuthLayout } from "../AuthLayout";
 
 export function SignupPage() {
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get("redirect");
   useEffect(() => {
     // Set confirmPassword input type to password after form renders
     const setPasswordType = () => {
@@ -76,7 +78,7 @@ export function SignupPage() {
             <span className="text-xs text-gray-400">
               {"Already have an account? "}
               <Link
-                to="/login"
+                to={redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login"}
                 className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 hover:from-cyan-300 hover:to-purple-300 transition-all underline-offset-4 hover:underline"
               >
                 Go to login

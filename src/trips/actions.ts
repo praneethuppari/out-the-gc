@@ -147,11 +147,79 @@ export const joinTrip = async (
     throw new HttpError(401);
   }
 
-  // TODO: Implement join trip flow
-  // - Find trip by token
-  // - Create or update TripParticipant
-  // - Create activity entry
-  throw new HttpError(501, "Not implemented");
+  if (!context.entities) {
+    throw new HttpError(500, "Database entities not available");
+  }
+
+  const { Trip, TripParticipant, Activity } = context.entities;
+
+  try {
+    // Find trip by join token
+    const trip = await Trip.findUnique({
+      where: { joinToken: args.token },
+    });
+
+    if (!trip) {
+      throw new HttpError(404, "Trip not found or invalid join link");
+    }
+
+    // Check if user is already a participant
+    const existingParticipant = await TripParticipant.findUnique({
+      where: {
+        tripId_userId: {
+          tripId: trip.id,
+          userId: context.user.id,
+        },
+      },
+    });
+
+    const oldStatus = existingParticipant?.rsvpStatus;
+
+    if (existingParticipant) {
+      // Update existing participant's RSVP
+      await TripParticipant.update({
+        where: {
+          tripId_userId: {
+            tripId: trip.id,
+            userId: context.user.id,
+          },
+        },
+        data: {
+          rsvpStatus: args.rsvpStatus,
+        },
+      });
+    } else {
+      // Create new participant
+      await TripParticipant.create({
+        data: {
+          tripId: trip.id,
+          userId: context.user.id,
+          rsvpStatus: args.rsvpStatus,
+          role: "PARTICIPANT",
+        },
+      });
+    }
+
+    // Create activity entry
+    const activityType = existingParticipant ? "RSVP_CHANGED" : "USER_JOINED";
+    await Activity.create({
+      data: {
+        tripId: trip.id,
+        userId: context.user.id,
+        type: activityType,
+        metadata: JSON.stringify({
+          oldStatus: oldStatus || null,
+          newStatus: args.rsvpStatus,
+        }),
+      },
+    });
+  } catch (error) {
+    console.error("Error joining trip:", error);
+    if (error instanceof HttpError) {
+      throw error;
+    }
+    throw new HttpError(500, "Failed to join trip");
+  }
 };
 
 type UpdateRSVPArgs = {
@@ -167,9 +235,78 @@ export const updateRSVP = async (
     throw new HttpError(401);
   }
 
-  // TODO: Implement RSVP update
-  // - Update TripParticipant rsvpStatus
-  // - Create activity entry
-  throw new HttpError(501, "Not implemented");
+  if (!context.entities) {
+    throw new HttpError(500, "Database entities not available");
+  }
+
+  const { Trip, TripParticipant, Activity } = context.entities;
+
+  try {
+    // Verify trip exists
+    const trip = await Trip.findUnique({
+      where: { id: args.tripId },
+    });
+
+    if (!trip) {
+      throw new HttpError(404, "Trip not found");
+    }
+
+    // Find or create participant
+    const existingParticipant = await TripParticipant.findUnique({
+      where: {
+        tripId_userId: {
+          tripId: args.tripId,
+          userId: context.user.id,
+        },
+      },
+    });
+
+    const oldStatus = existingParticipant?.rsvpStatus;
+
+    if (existingParticipant) {
+      // Update existing participant
+      await TripParticipant.update({
+        where: {
+          tripId_userId: {
+            tripId: args.tripId,
+            userId: context.user.id,
+          },
+        },
+        data: {
+          rsvpStatus: args.rsvpStatus,
+        },
+      });
+    } else {
+      // Create new participant (user joining trip)
+      await TripParticipant.create({
+        data: {
+          tripId: args.tripId,
+          userId: context.user.id,
+          rsvpStatus: args.rsvpStatus,
+          role: "PARTICIPANT",
+        },
+      });
+    }
+
+    // Create activity entry
+    const activityType = existingParticipant ? "RSVP_CHANGED" : "USER_JOINED";
+    await Activity.create({
+      data: {
+        tripId: args.tripId,
+        userId: context.user.id,
+        type: activityType,
+        metadata: JSON.stringify({
+          oldStatus: oldStatus || null,
+          newStatus: args.rsvpStatus,
+        }),
+      },
+    });
+  } catch (error) {
+    console.error("Error updating RSVP:", error);
+    if (error instanceof HttpError) {
+      throw error;
+    }
+    throw new HttpError(500, "Failed to update RSVP");
+  }
 };
 

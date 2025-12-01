@@ -8,7 +8,7 @@ export function TravelStatusList({ confirmations }: TravelStatusListProps) {
   // TODO: Implement travel status list
   // - Show who has confirmed travel
   // - Show who hasn't confirmed yet
-  if (confirmations.length === 0) {
+  if (!confirmations || confirmations.length === 0) {
     return <div className="text-gray-600">No travel confirmations yet</div>;
   }
 

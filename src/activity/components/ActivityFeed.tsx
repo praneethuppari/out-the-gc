@@ -22,7 +22,7 @@ export function ActivityFeed({ tripId }: ActivityFeedProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div data-testid="activity-feed" className="flex flex-col gap-4">
       {activities.map((activity) => (
         <div key={activity.id} className="card p-4">
           <p className="text-sm text-gray-600">
