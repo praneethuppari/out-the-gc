@@ -38,6 +38,8 @@ model Trip {
   coverPhoto  String?
   joinToken   String   @unique // For shareable join links
   phase       String   @default("DATES") // PlanningPhase: DATES, DESTINATION, TRAVEL_CONFIRMATION, COMPLETED
+  datePitchDeadline DateTime? // Deadline for submitting date proposals (set by organizer)
+  votingDeadlineDurationDays Int @default(7) // Days after pitch deadline for voting (default 1 week)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

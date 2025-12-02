@@ -59,6 +59,8 @@ const mockTrip: TripWithParticipants = {
   coverPhoto: 'https://example.com/photo.jpg',
   joinToken: 'abc123xyz789',
   phase: 'DATES',
+  datePitchDeadline: null,
+  votingDeadlineDurationDays: 7,
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
   organizerId: 'user-2',

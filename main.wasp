@@ -159,9 +159,9 @@ action voteOnDestinationPitch {
   entities: [DestinationVote, Activity]
 }
 
-action setPitchDeadline {
-  fn: import { setPitchDeadline } from "@src/polls/actions",
-  entities: [DatePitch]
+action updateDatePitchSettings {
+  fn: import { updateDatePitchSettings } from "@src/polls/actions",
+  entities: [Trip, Activity]
 }
 // #endregion Polls
 

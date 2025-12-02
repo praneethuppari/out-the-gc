@@ -8,6 +8,8 @@ type DateVoteFormProps = {
   pitch: DatePitchWithVotes;
   onVote: (voteType: DateVoteType, selectedDates?: string[]) => void;
   userId?: string;
+  tripPitchDeadline?: Date | null;
+  tripVotingDeadline?: Date | null;
 };
 
 function generateDateRange(startDate: Date, endDate: Date): string[] {
@@ -23,7 +25,7 @@ function generateDateRange(startDate: Date, endDate: Date): string[] {
   return dates;
 }
 
-export function DateVoteForm({ pitch, onVote, userId }: DateVoteFormProps) {
+export function DateVoteForm({ pitch, onVote, userId, tripPitchDeadline, tripVotingDeadline }: DateVoteFormProps) {
   const { data: user } = useAuth();
   const currentUserId = userId || user?.id;
   const [selectedVoteType, setSelectedVoteType] = useState<DateVoteType | null>(null);
@@ -43,10 +45,10 @@ export function DateVoteForm({ pitch, onVote, userId }: DateVoteFormProps) {
     return generateDateRange(start, end);
   }, [pitch.startDate, pitch.endDate]);
 
-  // Check if voting is open
+  // Check if voting is open - use trip-level deadlines if provided
   const now = new Date();
-  const pitchDeadline = new Date(pitch.pitchDeadline);
-  const votingDeadline = new Date(pitch.votingDeadline);
+  const pitchDeadline = tripPitchDeadline ? new Date(tripPitchDeadline) : new Date(pitch.pitchDeadline);
+  const votingDeadline = tripVotingDeadline ? new Date(tripVotingDeadline) : new Date(pitch.votingDeadline);
   const isVotingOpen = now >= pitchDeadline && now < votingDeadline;
 
   if (!isVotingOpen) {

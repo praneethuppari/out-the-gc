@@ -2,6 +2,8 @@ import type { DatePitchWithVotes } from "../types";
 
 type DatePitchCardProps = {
   pitch: DatePitchWithVotes;
+  tripPitchDeadline?: Date | null;
+  tripVotingDeadline?: Date | null;
 };
 
 function calculateNightsAndDays(startDate: Date, endDate: Date): { nights: number; days: number } {
@@ -26,15 +28,17 @@ function formatDate(date: Date): string {
   });
 }
 
-export function DatePitchCard({ pitch }: DatePitchCardProps) {
+export function DatePitchCard({ pitch, tripPitchDeadline, tripVotingDeadline }: DatePitchCardProps) {
   const startDate = new Date(pitch.startDate);
   const endDate = new Date(pitch.endDate);
   const { nights, days } = calculateNightsAndDays(startDate, endDate);
 
   const now = new Date();
-  const pitchDeadline = new Date(pitch.pitchDeadline);
+  // Use trip-level deadlines if provided, otherwise fall back to pitch-level (for backward compatibility)
+  const pitchDeadline = tripPitchDeadline ? new Date(tripPitchDeadline) : new Date(pitch.pitchDeadline);
+  const votingDeadline = tripVotingDeadline ? new Date(tripVotingDeadline) : new Date(pitch.votingDeadline);
+  
   const isProposalPhase = now < pitchDeadline;
-  const votingDeadline = new Date(pitch.votingDeadline);
   const isVotingPhase = now >= pitchDeadline && now < votingDeadline;
   const isVotingClosed = now >= votingDeadline;
 

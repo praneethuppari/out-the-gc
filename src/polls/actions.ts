@@ -7,8 +7,6 @@ type CreateDatePitchArgs = {
   startDate: Date;
   endDate: Date;
   description?: string;
-  pitchDeadline: Date;
-  votingDeadline: Date;
 };
 
 export const createDatePitch = async (
@@ -63,25 +61,31 @@ export const createDatePitch = async (
       throw new HttpError(400, "End date must be after start date");
     }
 
-    // Validate deadlines
-    const now = new Date();
-    if (args.pitchDeadline <= now) {
-      throw new HttpError(400, "Pitch deadline must be in the future");
+    // Check if trip has a pitch deadline set
+    if (!trip.datePitchDeadline) {
+      throw new HttpError(400, "Organizer must set a proposal deadline before dates can be proposed");
     }
 
-    if (args.votingDeadline <= args.pitchDeadline) {
-      throw new HttpError(400, "Voting deadline must be after pitch deadline");
+    // Validate that we're still before the pitch deadline
+    const now = new Date();
+    if (now >= trip.datePitchDeadline) {
+      throw new HttpError(400, "The proposal deadline has passed. Please contact the organizer to extend it.");
     }
+
+    // Calculate voting deadline from trip settings
+    const votingDeadline = new Date(trip.datePitchDeadline);
+    votingDeadline.setDate(votingDeadline.getDate() + (trip.votingDeadlineDurationDays || 7));
 
     // Create the date pitch
+    // Store trip's pitch deadline and calculated voting deadline for reference
     const datePitch = await DatePitch.create({
       data: {
         tripId: args.tripId,
         startDate: args.startDate,
         endDate: args.endDate,
         description: args.description || null,
-        pitchDeadline: args.pitchDeadline,
-        votingDeadline: args.votingDeadline,
+        pitchDeadline: trip.datePitchDeadline,
+        votingDeadline: votingDeadline,
         pitchedById: context.user.id,
       },
     });
@@ -148,13 +152,26 @@ export const voteOnDatePitch = async (
       throw new HttpError(400, "Trip is not in the dates planning phase");
     }
 
-    // Verify pitch deadline has passed (voting phase)
+    // Verify trip deadline has passed (voting phase) - use trip-level deadlines
     const now = new Date();
-    if (now < pitch.pitchDeadline) {
+    const tripPitchDeadline = pitch.trip.datePitchDeadline;
+    const votingDeadline = tripPitchDeadline
+      ? (() => {
+          const deadline = new Date(tripPitchDeadline);
+          deadline.setDate(deadline.getDate() + (pitch.trip.votingDeadlineDurationDays || 7));
+          return deadline;
+        })()
+      : null;
+
+    if (!tripPitchDeadline) {
+      throw new HttpError(400, "Organizer must set a proposal deadline before voting can begin");
+    }
+
+    if (now < tripPitchDeadline) {
       throw new HttpError(400, "Voting has not started yet. Please wait for the proposal deadline to pass.");
     }
 
-    if (now >= pitch.votingDeadline) {
+    if (votingDeadline && now >= votingDeadline) {
       throw new HttpError(400, "Voting deadline has passed");
     }
 
@@ -285,20 +302,87 @@ export const voteOnDestinationPitch = async (
   throw new HttpError(501, "Not implemented");
 };
 
-type SetPitchDeadlineArgs = {
+type UpdateDatePitchSettingsArgs = {
   tripId: string;
-  pitchDeadline: Date;
+  datePitchDeadline: Date;
+  votingDeadlineDurationDays: number;
 };
 
-export const setPitchDeadline = async (
-  args: SetPitchDeadlineArgs,
+export const updateDatePitchSettings = async (
+  args: UpdateDatePitchSettingsArgs,
   context: any,
 ): Promise<void> => {
   if (!context.user) {
     throw new HttpError(401);
   }
 
-  // TODO: Implement setting pitch deadline (organizer only)
-  throw new HttpError(501, "Not implemented");
+  if (!context.entities) {
+    throw new HttpError(500, "Database entities not available");
+  }
+
+  const { Trip, TripParticipant, Activity } = context.entities;
+
+  try {
+    // Verify trip exists
+    const trip = await Trip.findUnique({
+      where: { id: args.tripId },
+    });
+
+    if (!trip) {
+      throw new HttpError(404, "Trip not found");
+    }
+
+    // Verify user is the organizer
+    if (trip.organizerId !== context.user.id) {
+      throw new HttpError(403, "Only the organizer can update date pitch settings");
+    }
+
+    // Verify trip is in DATES phase
+    if (trip.phase !== "DATES") {
+      throw new HttpError(400, "Trip is not in the dates planning phase");
+    }
+
+    // Validate deadline is in the future
+    // Note: Date objects are compared in UTC, but the client sends local time
+    // which gets converted. We compare as-is since both are Date objects.
+    const now = new Date();
+    if (args.datePitchDeadline <= now) {
+      throw new HttpError(400, "Pitch deadline must be in the future. Please select a date and time that is after the current time.");
+    }
+
+    // Validate voting duration is positive
+    if (args.votingDeadlineDurationDays <= 0) {
+      throw new HttpError(400, "Voting deadline duration must be at least 1 day");
+    }
+
+    // Update trip settings
+    await Trip.update({
+      where: { id: args.tripId },
+      data: {
+        datePitchDeadline: args.datePitchDeadline,
+        votingDeadlineDurationDays: args.votingDeadlineDurationDays,
+      },
+    });
+
+    // Create activity entry
+    await Activity.create({
+      data: {
+        tripId: args.tripId,
+        userId: context.user.id,
+        type: "PHASE_CHANGED",
+        metadata: JSON.stringify({
+          phase: "DATES",
+          datePitchDeadline: args.datePitchDeadline.toISOString(),
+          votingDeadlineDurationDays: args.votingDeadlineDurationDays,
+        }),
+      },
+    });
+  } catch (error) {
+    console.error("Error updating date pitch settings:", error);
+    if (error instanceof HttpError) {
+      throw error;
+    }
+    throw new HttpError(500, "Failed to update date pitch settings");
+  }
 };
 

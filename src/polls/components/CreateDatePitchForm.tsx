@@ -10,14 +10,12 @@ type CreateDatePitchFormProps = {
 type FormData = {
   startDate: string;
   endDate: string;
-  deadlineWeeks: number;
 };
 
 export function CreateDatePitchForm({ tripId }: CreateDatePitchFormProps) {
   const [formData, setFormData] = useState<FormData>({
     startDate: '',
     endDate: '',
-    deadlineWeeks: 1,
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>> & { submit?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,28 +85,17 @@ export function CreateDatePitchForm({ tripId }: CreateDatePitchFormProps) {
       const startDate = new Date(formData.startDate);
       const endDate = new Date(formData.endDate);
 
-      // Calculate deadlines
-      const now = new Date();
-      const pitchDeadline = new Date(now);
-      pitchDeadline.setDate(pitchDeadline.getDate() + formData.deadlineWeeks * 7);
-
-      // Voting deadline is 1 week after pitch deadline
-      const votingDeadline = new Date(pitchDeadline);
-      votingDeadline.setDate(votingDeadline.getDate() + 7);
-
+      // Deadlines are set by organizer in trip settings
       await createDatePitchAction({
         tripId,
         startDate,
         endDate,
-        pitchDeadline,
-        votingDeadline,
       });
 
       // Reset form
       setFormData({
         startDate: '',
         endDate: '',
-        deadlineWeeks: 1,
       });
       setErrors({});
     } catch (error) {
@@ -170,27 +157,6 @@ export function CreateDatePitchForm({ tripId }: CreateDatePitchFormProps) {
             </p>
           </div>
         )}
-
-        <div>
-          <label htmlFor="deadlineWeeks" className="block text-sm font-medium text-gray-300 mb-1">
-            Proposal Deadline (weeks)
-          </label>
-          <select
-            id="deadlineWeeks"
-            name="deadlineWeeks"
-            value={formData.deadlineWeeks}
-            onChange={handleChange}
-            className="w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-          >
-            <option value={1}>1 week (default)</option>
-            <option value={2}>2 weeks</option>
-            <option value={3}>3 weeks</option>
-            <option value={4}>4 weeks</option>
-          </select>
-          <p className="text-xs text-gray-400 mt-1">
-            Time limit for others to propose dates. Voting begins after this deadline.
-          </p>
-        </div>
 
         {errors.submit && (
           <div className="text-sm text-red-400">{errors.submit}</div>
