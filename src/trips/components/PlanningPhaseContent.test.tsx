@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PlanningPhaseContent } from './PlanningPhaseContent';
-import { useQuery, getDatePitches, getDestinationPitches } from 'wasp/client/operations';
+import { useQuery, useAction, getDatePitches, getDestinationPitches } from 'wasp/client/operations';
 import type { TripWithParticipants } from '../types';
 
 // Mock wasp client/operations
 vi.mock('wasp/client/operations', () => ({
   useQuery: vi.fn(),
+  useAction: vi.fn(),
   getDatePitches: vi.fn(),
   getDestinationPitches: vi.fn(),
   getTravelConfirmations: vi.fn(),
+  voteOnDatePitch: vi.fn(),
 }));
 
 const mockTrip: TripWithParticipants = {
@@ -48,7 +50,16 @@ describe('PlanningPhaseContent', () => {
     vi.mocked(useQuery).mockReturnValue({
       data: [],
       isLoading: false,
-    } as ReturnType<typeof useQuery>);
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useQuery>);
+    vi.mocked(useAction).mockReturnValue({
+      execute: vi.fn(),
+      isError: false,
+      isLoading: false,
+      error: null,
+    } as any);
   });
 
   it('renders dates phase content for DATES phase', () => {

@@ -12,13 +12,19 @@ import type { TripWithParticipants } from './types';
 const mockMutate = vi.fn();
 vi.mock('wasp/client/operations', () => ({
   useQuery: vi.fn(),
-  useAction: vi.fn(() => mockMutate),
+  useAction: vi.fn(() => ({
+    execute: mockMutate,
+    isError: false,
+    isLoading: false,
+    error: null,
+  })),
   getTrip: vi.fn(),
   getDatePitches: vi.fn(),
   getDestinationPitches: vi.fn(),
   getTravelConfirmations: vi.fn(),
   getActivities: vi.fn(),
   updateRSVP: vi.fn(),
+  voteOnDatePitch: vi.fn(),
 }));
 
 // Mock react-router-dom

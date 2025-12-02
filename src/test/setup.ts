@@ -34,6 +34,10 @@ vi.mock('wasp/client/auth', () => ({
 vi.mock('react-router-dom', () => ({
   Link: ({ to, children, className, ...props }: { to: string; children: React.ReactNode; className?: string }) =>
     React.createElement('a', { href: to, className, 'data-testid': `link-${to}`, ...props }, children),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+  useParams: () => ({}),
+  useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/', search: '', hash: '', state: null }),
 }));
 
 // Mock wasp client/router

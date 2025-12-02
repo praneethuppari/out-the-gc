@@ -1,12 +1,15 @@
-import { useQuery } from 'wasp/client/operations';
-import { getDatePitches, getDestinationPitches } from 'wasp/client/operations';
+import { useQuery, useAction } from 'wasp/client/operations';
+import { getDatePitches, getDestinationPitches, voteOnDatePitch } from 'wasp/client/operations';
 import { CreateDatePitchForm } from '../../polls/components/CreateDatePitchForm';
 import { CreateDestinationPitchForm } from '../../polls/components/CreateDestinationPitchForm';
 import { DatePitchCard } from '../../polls/components/DatePitchCard';
+import { DateVoteForm } from '../../polls/components/DateVoteForm';
 import { DestinationPitchCard } from '../../polls/components/DestinationPitchCard';
 import { TravelStatusList } from '../../travel/components/TravelStatusList';
 import { getTravelConfirmations } from 'wasp/client/operations';
 import type { TripWithParticipants } from '../types';
+import type { DatePitchWithVotes } from '../../polls/types';
+import type { DateVoteType } from '../../polls/types';
 
 type PlanningPhaseContentProps = {
   trip: TripWithParticipants;
@@ -18,7 +21,7 @@ export function PlanningPhaseContent({ trip, currentUserId }: PlanningPhaseConte
   const canVote = currentParticipant?.rsvpStatus === 'GOING';
 
   if (trip.phase === 'DATES') {
-    return <DatesPhaseContent tripId={trip.id} canVote={canVote || false} />;
+    return <DatesPhaseContent tripId={trip.id} canVote={canVote || false} currentUserId={currentUserId} />;
   }
 
   if (trip.phase === 'DESTINATION') {
@@ -32,10 +35,38 @@ export function PlanningPhaseContent({ trip, currentUserId }: PlanningPhaseConte
   return null;
 }
 
-function DatesPhaseContent({ tripId, canVote }: { tripId: string; canVote: boolean }) {
-  const { data: datePitches, isLoading } = useQuery(getDatePitches, { tripId }) as {
-    data: any[] | undefined;
+function DatesPhaseContent({ tripId, canVote, currentUserId }: { tripId: string; canVote: boolean; currentUserId: string }) {
+  const { data: datePitches, isLoading, refetch } = useQuery(getDatePitches, { tripId }) as {
+    data: DatePitchWithVotes[] | undefined;
     isLoading: boolean;
+    refetch: () => Promise<any>;
+  };
+  const voteAction = useAction(voteOnDatePitch);
+
+  // Check if any pitch is in voting phase
+  const now = new Date();
+  const hasActiveVoting = datePitches?.some((pitch) => {
+    const pitchDeadline = new Date(pitch.pitchDeadline);
+    const votingDeadline = new Date(pitch.votingDeadline);
+    return now >= pitchDeadline && now < votingDeadline;
+  });
+
+  const canStillPropose = datePitches?.some((pitch) => {
+    const pitchDeadline = new Date(pitch.pitchDeadline);
+    return now < pitchDeadline;
+  });
+
+  const handleVote = async (pitchId: string, voteType: DateVoteType, selectedDates?: string[]) => {
+    try {
+      await voteAction({
+        pitchId,
+        voteType,
+        selectedDates,
+      });
+      await refetch();
+    } catch (error) {
+      console.error('Failed to vote:', error);
+    }
   };
 
   return (
@@ -46,7 +77,7 @@ function DatesPhaseContent({ tripId, canVote }: { tripId: string; canVote: boole
           Propose date ranges for the trip. Once the deadline passes, everyone will vote on the options.
         </p>
 
-        {canVote && (
+        {canVote && (!hasActiveVoting || canStillPropose) && (
           <div className="mb-6">
             <CreateDatePitchForm tripId={tripId} />
           </div>
@@ -65,7 +96,26 @@ function DatesPhaseContent({ tripId, canVote }: { tripId: string; canVote: boole
           {isLoading ? (
             <p className="text-gray-400">Loading dates...</p>
           ) : datePitches && datePitches.length > 0 ? (
-            datePitches.map((pitch) => <DatePitchCard key={pitch.id} pitch={pitch} />)
+            datePitches.map((pitch) => {
+              const pitchDeadline = new Date(pitch.pitchDeadline);
+              const votingDeadline = new Date(pitch.votingDeadline);
+              const isVotingPhase = now >= pitchDeadline && now < votingDeadline;
+
+              return (
+                <div key={pitch.id} className="space-y-4">
+                  <DatePitchCard pitch={pitch} />
+                  {isVotingPhase && canVote && (
+                    <div className="ml-4">
+                      <DateVoteForm
+                        pitch={pitch}
+                        onVote={(voteType, selectedDates) => handleVote(pitch.id, voteType, selectedDates)}
+                        userId={currentUserId}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })
           ) : (
             <p className="text-gray-400 text-center py-8">No date proposals yet</p>
           )}

@@ -131,7 +131,7 @@ action updateRSVP {
 // #region Polls
 query getDatePitches {
   fn: import { getDatePitches } from "@src/polls/queries",
-  entities: [DatePitch, DateVote, User]
+  entities: [DatePitch, DateVote, User, Trip, TripParticipant]
 }
 
 query getDestinationPitches {
@@ -141,12 +141,12 @@ query getDestinationPitches {
 
 action createDatePitch {
   fn: import { createDatePitch } from "@src/polls/actions",
-  entities: [DatePitch, Activity]
+  entities: [DatePitch, Activity, Trip, TripParticipant]
 }
 
 action voteOnDatePitch {
   fn: import { voteOnDatePitch } from "@src/polls/actions",
-  entities: [DateVote, Activity]
+  entities: [DateVote, Activity, DatePitch, TripParticipant]
 }
 
 action createDestinationPitch {
