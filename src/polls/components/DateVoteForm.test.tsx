@@ -164,9 +164,169 @@ describe('DateVoteForm', () => {
         },
       ],
     };
-    const { container } = render(<DateVoteForm pitch={pitchWithVote} onVote={mockOnVote} userId="user-2" />);
+    const { container } = render(<DateVoteForm pitch={pitchWithVote} onVote={mockOnVote} userId="user-2" tripPitchDeadline={pastDeadline} tripVotingDeadline={futureVotingDeadline} />);
     // Text is split across elements - check container textContent
     expect(container.textContent).toMatch(/You voted.*All dates work/i);
+  });
+
+  it('shows Change Vote button when user has voted and voting is open', () => {
+    const now = new Date();
+    const pastDeadline = new Date(now);
+    pastDeadline.setDate(pastDeadline.getDate() - 1);
+    const futureVotingDeadline = new Date(now);
+    futureVotingDeadline.setDate(futureVotingDeadline.getDate() + 5);
+    
+    const pitchWithVote = {
+      ...mockPitch,
+      pitchDeadline: pastDeadline,
+      votingDeadline: futureVotingDeadline,
+      votes: [
+        {
+          id: 'vote-1',
+          userId: 'user-2',
+          pitchId: 'pitch-1',
+          voteType: 'ALL_WORK',
+          selectedDates: null,
+          createdAt: new Date(),
+          user: { id: 'user-2', username: 'voter1' },
+        },
+      ],
+    };
+    render(<DateVoteForm pitch={pitchWithVote} onVote={mockOnVote} userId="user-2" tripPitchDeadline={pastDeadline} tripVotingDeadline={futureVotingDeadline} />);
+    expect(screen.getByRole('button', { name: /change vote/i })).toBeInTheDocument();
+  });
+
+  it('allows user to edit their vote', async () => {
+    const user = userEvent.setup();
+    const now = new Date();
+    const pastDeadline = new Date(now);
+    pastDeadline.setDate(pastDeadline.getDate() - 1);
+    const futureVotingDeadline = new Date(now);
+    futureVotingDeadline.setDate(futureVotingDeadline.getDate() + 5);
+    
+    const pitchWithVote = {
+      ...mockPitch,
+      pitchDeadline: pastDeadline,
+      votingDeadline: futureVotingDeadline,
+      votes: [
+        {
+          id: 'vote-1',
+          userId: 'user-2',
+          pitchId: 'pitch-1',
+          voteType: 'ALL_WORK',
+          selectedDates: null,
+          createdAt: new Date(),
+          user: { id: 'user-2', username: 'voter1' },
+        },
+      ],
+    };
+    mockOnVote.mockResolvedValue(undefined);
+    
+    render(<DateVoteForm pitch={pitchWithVote} onVote={mockOnVote} userId="user-2" tripPitchDeadline={pastDeadline} tripVotingDeadline={futureVotingDeadline} />);
+    
+    // Click Change Vote button
+    const changeVoteButton = screen.getByRole('button', { name: /change vote/i });
+    await user.click(changeVoteButton);
+
+    // Form should appear with existing vote pre-selected
+    await waitFor(() => {
+      expect(screen.getByText(/change your vote/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/all dates work/i)).toBeChecked();
+    });
+
+    // Change to NONE_WORK
+    const noneWorkRadio = screen.getByLabelText(/none work/i);
+    await user.click(noneWorkRadio);
+
+    // Submit the updated vote
+    const updateButton = screen.getByRole('button', { name: /update vote/i });
+    await user.click(updateButton);
+
+    await waitFor(() => {
+      expect(mockOnVote).toHaveBeenCalledWith('NONE_WORK', undefined);
+    });
+  });
+
+  it('pre-populates form with existing PARTIAL vote when editing', async () => {
+    const user = userEvent.setup();
+    const now = new Date();
+    const pastDeadline = new Date(now);
+    pastDeadline.setDate(pastDeadline.getDate() - 1);
+    const futureVotingDeadline = new Date(now);
+    futureVotingDeadline.setDate(futureVotingDeadline.getDate() + 5);
+    
+    const pitchWithPartialVote = {
+      ...mockPitch,
+      pitchDeadline: pastDeadline,
+      votingDeadline: futureVotingDeadline,
+      votes: [
+        {
+          id: 'vote-1',
+          userId: 'user-2',
+          pitchId: 'pitch-1',
+          voteType: 'PARTIAL',
+          selectedDates: JSON.stringify(['2024-06-01', '2024-06-02']),
+          createdAt: new Date(),
+          user: { id: 'user-2', username: 'voter1' },
+        },
+      ],
+    };
+    mockOnVote.mockResolvedValue(undefined);
+    
+    render(<DateVoteForm pitch={pitchWithPartialVote} onVote={mockOnVote} userId="user-2" tripPitchDeadline={pastDeadline} tripVotingDeadline={futureVotingDeadline} />);
+    
+    // Click Change Vote
+    const changeVoteButton = screen.getByRole('button', { name: /change vote/i });
+    await user.click(changeVoteButton);
+
+    // Form should show PARTIAL selected and dates pre-selected
+    await waitFor(() => {
+      expect(screen.getByLabelText(/partial/i)).toBeChecked();
+    });
+  });
+
+  it('allows canceling vote edit', async () => {
+    const user = userEvent.setup();
+    const now = new Date();
+    const pastDeadline = new Date(now);
+    pastDeadline.setDate(pastDeadline.getDate() - 1);
+    const futureVotingDeadline = new Date(now);
+    futureVotingDeadline.setDate(futureVotingDeadline.getDate() + 5);
+    
+    const pitchWithVote = {
+      ...mockPitch,
+      pitchDeadline: pastDeadline,
+      votingDeadline: futureVotingDeadline,
+      votes: [
+        {
+          id: 'vote-1',
+          userId: 'user-2',
+          pitchId: 'pitch-1',
+          voteType: 'ALL_WORK',
+          selectedDates: null,
+          createdAt: new Date(),
+          user: { id: 'user-2', username: 'voter1' },
+        },
+      ],
+    };
+    
+    render(<DateVoteForm pitch={pitchWithVote} onVote={mockOnVote} userId="user-2" tripPitchDeadline={pastDeadline} tripVotingDeadline={futureVotingDeadline} />);
+    
+    // Click Change Vote
+    const changeVoteButton = screen.getByRole('button', { name: /change vote/i });
+    await user.click(changeVoteButton);
+
+    // Click Cancel (there are two cancel buttons, use getAllByRole and click the first one)
+    const cancelButtons = screen.getAllByRole('button', { name: /cancel/i });
+    await user.click(cancelButtons[0]);
+
+    // Should return to view mode
+    await waitFor(() => {
+      expect(screen.getByText(/you voted/i)).toBeInTheDocument();
+      expect(screen.queryByText(/change your vote/i)).not.toBeInTheDocument();
+    });
+
+    expect(mockOnVote).not.toHaveBeenCalled();
   });
 });
 

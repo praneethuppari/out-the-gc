@@ -1,4 +1,5 @@
 import type { DatePitchWithVotes } from "../types";
+import { VoteResults } from "./VoteResults";
 
 type DatePitchCardProps = {
   pitch: DatePitchWithVotes;
@@ -85,6 +86,12 @@ export function DatePitchCard({ pitch, tripPitchDeadline, tripVotingDeadline }: 
           Proposed by <span className="font-medium text-white">{pitch.pitchedBy.username}</span>
         </div>
       </div>
+
+      {isVotingClosed && pitch.votes.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <VoteResults pitch={pitch} />
+        </div>
+      )}
     </div>
   );
 }

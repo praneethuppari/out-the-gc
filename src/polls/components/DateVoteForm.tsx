@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from 'wasp/client/auth';
 import type { DatePitchWithVotes } from "../types";
 import type { DateVoteType } from "../types";
@@ -28,6 +28,7 @@ function generateDateRange(startDate: Date, endDate: Date): string[] {
 export function DateVoteForm({ pitch, onVote, userId, tripPitchDeadline, tripVotingDeadline }: DateVoteFormProps) {
   const { data: user } = useAuth();
   const currentUserId = userId || user?.id;
+  const [isEditing, setIsEditing] = useState(false);
   const [selectedVoteType, setSelectedVoteType] = useState<DateVoteType | null>(null);
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,6 +38,27 @@ export function DateVoteForm({ pitch, onVote, userId, tripPitchDeadline, tripVot
     if (!currentUserId) return null;
     return pitch.votes.find((v) => v.userId === currentUserId);
   }, [pitch.votes, currentUserId]);
+
+  // Initialize form with existing vote when editing
+  useEffect(() => {
+    if (existingVote && isEditing) {
+      setSelectedVoteType(existingVote.voteType as DateVoteType);
+      if (existingVote.voteType === 'PARTIAL' && existingVote.selectedDates) {
+        try {
+          const dates = JSON.parse(existingVote.selectedDates);
+          setSelectedDates(new Set(dates));
+        } catch (e) {
+          setSelectedDates(new Set());
+        }
+      } else {
+        setSelectedDates(new Set());
+      }
+    } else if (!isEditing) {
+      // Reset form when not editing
+      setSelectedVoteType(null);
+      setSelectedDates(new Set());
+    }
+  }, [existingVote, isEditing]);
 
   // Generate date range for PARTIAL selection
   const dateRange = useMemo(() => {
@@ -63,7 +85,8 @@ export function DateVoteForm({ pitch, onVote, userId, tripPitchDeadline, tripVot
     );
   }
 
-  if (existingVote) {
+  // Show existing vote with option to edit (if voting is still open)
+  if (existingVote && !isEditing) {
     const voteTypeLabel = existingVote.voteType === 'ALL_WORK' 
       ? 'All dates work'
       : existingVote.voteType === 'PARTIAL'
@@ -72,14 +95,28 @@ export function DateVoteForm({ pitch, onVote, userId, tripPitchDeadline, tripVot
     
     return (
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-        <p className="text-sm text-white">
-          You voted: <span className="font-semibold">{voteTypeLabel}</span>
-        </p>
-        {existingVote.voteType === 'PARTIAL' && existingVote.selectedDates && (
-          <p className="text-xs text-gray-400 mt-1">
-            Selected dates: {JSON.parse(existingVote.selectedDates).join(', ')}
-          </p>
-        )}
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <p className="text-sm text-white">
+              You voted: <span className="font-semibold">{voteTypeLabel}</span>
+            </p>
+            {existingVote.voteType === 'PARTIAL' && existingVote.selectedDates && (
+              <p className="text-xs text-gray-400 mt-1">
+                Selected dates: {JSON.parse(existingVote.selectedDates).join(', ')}
+              </p>
+            )}
+          </div>
+          {isVotingOpen && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsEditing(true)}
+              className="ml-4 !bg-blue-500/20 hover:!bg-blue-500/30 !text-blue-300 border border-blue-500/50 hover:border-blue-500/70"
+            >
+              Change Vote
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
@@ -112,7 +149,8 @@ export function DateVoteForm({ pitch, onVote, userId, tripPitchDeadline, tripVot
           ? Array.from(selectedDates)
           : undefined;
 
-      onVote(selectedVoteType, datesArray);
+      await onVote(selectedVoteType, datesArray);
+      setIsEditing(false);
       setSelectedVoteType(null);
       setSelectedDates(new Set());
     } catch (error) {
@@ -122,9 +160,17 @@ export function DateVoteForm({ pitch, onVote, userId, tripPitchDeadline, tripVot
     }
   };
 
+  const handleCancel = () => {
+    setIsEditing(false);
+    setSelectedVoteType(null);
+    setSelectedDates(new Set());
+  };
+
   return (
     <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-      <h4 className="font-semibold text-white mb-4">Vote on this date range</h4>
+      <h4 className="font-semibold text-white mb-4">
+        {isEditing ? 'Change Your Vote' : 'Vote on this date range'}
+      </h4>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-3">
           <label className="flex items-center gap-3 cursor-pointer">
@@ -201,13 +247,25 @@ export function DateVoteForm({ pitch, onVote, userId, tripPitchDeadline, tripVot
           </div>
         )}
 
-        <Button
-          type="submit"
-          disabled={!selectedVoteType || isSubmitting || (selectedVoteType === 'PARTIAL' && selectedDates.size === 0)}
-          className="w-full"
-        >
-          {isSubmitting ? 'Submitting...' : 'Submit Vote'}
-        </Button>
+        <div className="flex gap-2">
+          {isEditing && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleCancel}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          )}
+          <Button
+            type="submit"
+            disabled={!selectedVoteType || isSubmitting || (selectedVoteType === 'PARTIAL' && selectedDates.size === 0)}
+            className={isEditing ? "flex-1" : "w-full"}
+          >
+            {isSubmitting ? 'Submitting...' : isEditing ? 'Update Vote' : 'Submit Vote'}
+          </Button>
+        </div>
       </form>
     </div>
   );
